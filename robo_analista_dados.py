@@ -1,5 +1,4 @@
 import sys
-import io
 import os
 from functools import wraps
 from datetime import datetime
@@ -9,15 +8,15 @@ try:
     import matplotlib.pyplot as plt
     import seaborn as sns
     import numpy as np
-    from pandas.io.clipboard import clipboard_get, clipboard_set
     from dotenv import load_dotenv
     
     # Tenta importar da pasta 'src' (ideal), se falhar, tenta da mesma pasta
     try:
-        from src import ia, visualizacao
+        from src import ia, visualizacao, dados
     except ImportError:
         import ia
         import visualizacao
+        import dados
 
     # Carrega variáveis de ambiente de um arquivo .env automaticamente
     load_dotenv()
@@ -67,152 +66,36 @@ class RoboAnalistaDados:
         except Exception:
             pass
 
-    def carregar_dados(self):
-        """Carrega arquivo de dados"""
-        caminho_input = input("\n📂 Digite o caminho do arquivo (CSV/Excel/JSON): ")
-        
-        # Remove espaços em branco e aspas ao redor do caminho
-        arquivo = caminho_input.strip(' "\'')
-        
-        if not os.path.exists(arquivo):
-            print("❌ Arquivo não encontrado!")
-            return False
-        
-        try:
-            extensao = os.path.splitext(arquivo)[1].lower()
-            readers = {
-                '.csv': pd.read_csv,
-                '.xlsx': pd.read_excel,
-                '.xls': pd.read_excel,
-                '.json': pd.read_json,
-            }
-            
-            reader_func = readers.get(extensao)
-            if not reader_func:
-                print(f"⚠️ Extensão '{extensao}' não reconhecida. Tentando carregar como CSV por padrão...")
-                reader_func = pd.read_csv
-            
-            self.df = reader_func(arquivo)
-            self._criar_diretorio_saida() # Cria o diretório após o carregamento bem-sucedido
-
-            print(f"✅ Dados carregados! {self.df.shape[0]} linhas, {self.df.shape[1]} colunas")
+    def _processar_novo_df(self, novo_df, mensagem_sucesso="✅ Dados carregados!"):
+        """Processa e exibe o novo DataFrame carregado."""
+        if novo_df is not None:
+            self.df = novo_df
+            self._criar_diretorio_saida()
+            print(f"{mensagem_sucesso} {self.df.shape[0]} linhas, {self.df.shape[1]} colunas")
             print("\n📋 Primeiras 5 linhas:")
             print(self.df.head())
             return True
-        except Exception as e:
-            print(f"❌ Erro ao carregar: {e}")
-            return False
+        return False
+
+    def carregar_dados(self):
+        """Carrega arquivo de dados"""
+        novo_df = dados.carregar_arquivo()
+        return self._processar_novo_df(novo_df, "✅ Dados carregados!")
 
     def carregar_area_transferencia(self):
         """Carrega dados diretamente da área de transferência (clipboard)."""
-        print("\n📋 Tentando carregar dados da área de transferência...")
-        try:
-            # Tenta o carregamento padrão (tabelas do Excel, web, tabulações)
-            self.df = pd.read_clipboard()
-            self._criar_diretorio_saida()
-            
-            print(f"✅ Dados carregados do clipboard! {self.df.shape[0]} linhas, {self.df.shape[1]} colunas")
-            print("\n📋 Primeiras 5 linhas:")
-            print(self.df.head())
-            return True
-        except Exception as e:
-            print(f"⚠️ Formato tabular padrão falhou. Analisando o conteúdo copiado...")
-            try:
-                texto_copiado = clipboard_get()
-                texto_limpo = texto_copiado.strip()
-                
-                # Se o texto começar com chaves ou colchetes, tenta ler como JSON
-                if texto_limpo.startswith(('{', '[')):
-                    print("🔍 Formato JSON detectado na área de transferência!")
-                    self.df = pd.read_json(io.StringIO(texto_limpo))
-                else:
-                    # Pede um separador manual para o usuário caso seja um CSV estranho
-                    sep = input("🔍 Não foi possível identificar as colunas automaticamente.\nDigite o separador usado (ex: ',', ';', '|' ou deixe em branco para abortar): ")
-                    if not sep:
-                        return False
-                    self.df = pd.read_clipboard(sep=sep)
-                
-                self._criar_diretorio_saida()
-                print(f"✅ Dados carregados com sucesso! {self.df.shape[0]} linhas, {self.df.shape[1]} colunas")
-                print("\n📋 Primeiras 5 linhas:")
-                print(self.df.head())
-                return True
-                
-            except Exception as e2:
-                print(f"❌ Erro definitivo ao carregar da área de transferência.")
-                print(f"   Dica: Certifique-se de ter copiado dados estruturados válidos. Detalhe: {e2}")
-                return False
+        novo_df = dados.carregar_area_transferencia()
+        return self._processar_novo_df(novo_df, "✅ Dados carregados da área de transferência!")
 
     def carregar_url(self):
         """Carrega dados diretamente de uma URL."""
-        url_input = input("\n🔗 Digite a URL do arquivo (CSV/Excel/JSON): ")
-        url = url_input.strip(' "\'')
-        
-        if not url.startswith(('http://', 'https://')):
-            print("❌ URL inválida! Certifique-se de que ela comece com http:// ou https://")
-            return False
-            
-        print(f"⏳ Baixando dados de: {url} ...")
-        try:
-            # Tenta inferir o tipo de arquivo pela extensão na URL
-            if '.json' in url.lower():
-                self.df = pd.read_json(url)
-            elif '.xls' in url.lower():
-                self.df = pd.read_excel(url)
-            else:
-                self.df = pd.read_csv(url)
-                
-            self._criar_diretorio_saida()
-            
-            print(f"✅ Dados carregados com sucesso da URL! {self.df.shape[0]} linhas, {self.df.shape[1]} colunas")
-            print("\n📋 Primeiras 5 linhas:")
-            print(self.df.head())
-            return True
-        except Exception as e:
-            print(f"❌ Erro ao carregar da URL: {e}")
-            print("   Dica: Verifique se o link é público e aponta diretamente para o arquivo bruto (raw).")
-            return False
+        novo_df = dados.carregar_url()
+        return self._processar_novo_df(novo_df, "✅ Dados carregados com sucesso da URL!")
     
     def carregar_banco_dados(self):
         """Carrega dados diretamente de um banco de dados SQL."""
-        print("\n🗄️ CONEXÃO COM BANCO DE DADOS")
-        print("Suporta: SQLite, PostgreSQL, MySQL, SQL Server, Oracle, etc.")
-        
-        try:
-            from sqlalchemy import create_engine
-        except ImportError:
-            print("❌ ERRO: A biblioteca 'SQLAlchemy' não está instalada.")
-            print("   Rode no terminal: pip install sqlalchemy")
-            print("   (Lembre-se também de instalar o driver do banco, ex: psycopg2 para Postgres, pymysql para MySQL)")
-            return False
-
-        conexao_input = input("\n🔗 Digite a string de conexão (Ex: sqlite:///dados.db ou postgresql://user:pass@localhost/db): ")
-        string_conexao = conexao_input.strip(' "\'')
-        
-        if not string_conexao:
-            print("❌ Conexão cancelada.")
-            return False
-            
-        query = input("📝 Digite a Query SQL para extrair os dados (Ex: SELECT * FROM clientes): ").strip()
-        
-        if not query:
-            print("❌ Nenhuma query fornecida.")
-            return False
-
-        print(f"⏳ Conectando e executando query...")
-        try:
-            engine = create_engine(string_conexao)
-            self.df = pd.read_sql(query, engine)
-            self._criar_diretorio_saida()
-            
-            print(f"✅ Dados carregados com sucesso do banco! {self.df.shape[0]} linhas, {self.df.shape[1]} colunas")
-            print("\n📋 Primeiras 5 linhas:")
-            print(self.df.head())
-            return True
-        except Exception as e:
-            print(f"❌ Erro ao conectar ou consultar o banco: {e}")
-            print("   Dica: Verifique sua string de conexão, se o banco está rodando e se a tabela existe.")
-            return False
+        novo_df = dados.carregar_banco_dados()
+        return self._processar_novo_df(novo_df, "✅ Dados carregados com sucesso do banco!")
 
     @dados_carregados_required
     def estatisticas_descritivas(self):
@@ -274,32 +157,9 @@ class RoboAnalistaDados:
     @dados_carregados_required
     def exportar_dados(self):
         """Exporta os dados carregados para um arquivo (ideal para Power BI)."""
-        print("\n💾 EXPORTAR DADOS (PREPARAÇÃO PARA POWER BI)")
-        print("="*50)
-        print("Escolha o formato de exportação:")
-        print("1. Excel (.xlsx)")
-        print("2. CSV (.csv)")
-        
-        opcao = input("Opção (1-2): ").strip()
-        timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-        
-        try:
-            if opcao == '1':
-                filepath = os.path.join(self.output_dir or '.', f'dados_tratados_{timestamp}.xlsx')
-                self.df.to_excel(filepath, index=False)
-                print(f"✅ Arquivo Excel exportado com sucesso em: '{filepath}'")
-                print("💡 Dica para o Power BI: Vá em 'Obter Dados' -> 'Pasta de Trabalho do Excel' e selecione este arquivo!")
-            elif opcao == '2':
-                filepath = os.path.join(self.output_dir or '.', f'dados_tratados_{timestamp}.csv')
-                self.df.to_csv(filepath, index=False, sep=';')
-                print(f"✅ Arquivo CSV exportado com sucesso em: '{filepath}'")
-                print("💡 Dica para o Power BI: Vá em 'Obter Dados' -> 'Texto/CSV' e selecione este arquivo!")
-            else:
-                print("❌ Opção inválida!")
-                
+        sucesso = dados.exportar_dados(self.df, self.output_dir)
+        if sucesso:
             self._abrir_pasta_saida()
-        except Exception as e:
-            print(f"❌ Erro ao exportar dados: {e}")
 
     @dados_carregados_required
     def gerar_scripts_powerbi(self):
