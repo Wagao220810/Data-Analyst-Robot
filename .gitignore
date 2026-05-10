@@ -1,11 +1,6 @@
-# Saídas geradas automaticamente pelo Robô
+# Segredos e Variáveis de Ambiente
+.env
+
+# Pastas geradas pelo robô e arquivos temporários do Python
 analise_*/
-
-# Ambientes virtuais
-.venv/
-venv/
-env/
-
-# Arquivos de cache do Python
 __pycache__/
-*.py[cod]

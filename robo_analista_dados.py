@@ -10,11 +10,15 @@ try:
     import seaborn as sns
     import numpy as np
     from pandas.io.clipboard import clipboard_get, clipboard_set
+    from dotenv import load_dotenv
+    
+    # Carrega variáveis de ambiente de um arquivo .env automaticamente
+    load_dotenv()
 except ImportError as e:
     print("\n❌ ERRO: Dependências ausentes!")
     print(f"   Detalhe: {e}")
     print("   Por favor, instale as bibliotecas necessárias com o comando:")
-    print("   pip install pandas matplotlib seaborn openpyxl")
+    print("   pip install pandas matplotlib seaborn openpyxl python-dotenv")
     sys.exit(1)
 
 def dados_carregados_required(func):
@@ -26,6 +30,7 @@ def dados_carregados_required(func):
             return
         return func(self, *args, **kwargs)
     return wrapper
+
 
 class RoboAnalistaDados:
     def __init__(self):

@@ -7,3 +7,4 @@ pygwalker
 sqlalchemy
 google-generativeai
 plotly
+python-dotenv
