@@ -1,0 +1,1 @@
+# Arquivo necessário para o Python reconhecer esta pasta como um módulo (pacote).

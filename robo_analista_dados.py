@@ -12,6 +12,12 @@ try:
     from pandas.io.clipboard import clipboard_get, clipboard_set
     from dotenv import load_dotenv
     
+    # Tenta importar da pasta 'src' (ideal), se falhar, tenta da mesma pasta
+    try:
+        from src import ia
+    except ImportError:
+        import ia
+
     # Carrega variáveis de ambiente de um arquivo .env automaticamente
     load_dotenv()
 except ImportError as e:
@@ -307,53 +313,7 @@ class RoboAnalistaDados:
         if anomalias_resumo:
             resp = input("\n🤖 Deseja que o Gemini analise e sugira causas para essas anomalias? (s/n): ").strip().lower()
             if resp == 's':
-                self._explicar_anomalias_com_ia(anomalias_resumo)
-
-    def _explicar_anomalias_com_ia(self, anomalias_resumo):
-        """Usa a API do Gemini para interpretar os outliers detectados."""
-        try:
-            import google.generativeai as genai
-        except ImportError:
-            print("❌ ERRO: A biblioteca 'google-generativeai' não está instalada.")
-            return
-
-        api_key = os.environ.get("GEMINI_API_KEY", "")
-        if not api_key:
-            api_key = input("🔑 Cole sua API Key do Google Gemini (ou Enter para cancelar): ").strip()
-            if not api_key:
-                return
-            # Salva na variável de ambiente para não pedir novamente nesta sessão
-            os.environ["GEMINI_API_KEY"] = api_key
-            
-        try:
-            genai.configure(api_key=api_key)
-            
-            prompt = f"Você é um Cientista de Dados Sênior. Encontramos as seguintes anomalias (outliers) no dataset:\n{anomalias_resumo}\n\nPor favor, sugira possíveis motivos no mundo real que explicariam o aparecimento dessas anomalias nestas colunas. Seja direto, criativo e analítico."
-            
-            print("⏳ Investigando anomalias com o Gemini...\n")
-            
-            # Busca dinamicamente qual modelo está disponível para a sua chave
-            modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            if not modelos_disponiveis:
-                raise Exception("Sua API Key não tem acesso a nenhum modelo de geração de texto.")
-                
-            modelo_escolhido = modelos_disponiveis[0]
-            for m in modelos_disponiveis:
-                if '1.5-flash' in m:
-                    modelo_escolhido = m
-                    break
-                    
-            print(f"⚙️ Modelo selecionado automaticamente: {modelo_escolhido}")
-            model = genai.GenerativeModel(modelo_escolhido)
-            response = model.generate_content(prompt)
-            
-            print("✨ ANÁLISE DE ANOMALIAS PELO GEMINI ✨")
-            print("-" * 50)
-            print(response.text)
-            print("-" * 50)
-            
-        except Exception as e:
-            print(f"❌ Erro ao comunicar com a API do Gemini: {e}")
+                ia.explicar_anomalias(anomalias_resumo)
 
     @dados_carregados_required
     def exportar_dados(self):
@@ -492,61 +452,7 @@ else:
         print("\n🧠 GERANDO INSIGHTS COM INTELIGÊNCIA ARTIFICIAL (GEMINI)")
         print("="*50)
         
-        try:
-            import google.generativeai as genai
-        except ImportError:
-            print("❌ ERRO: A biblioteca 'google-generativeai' não está instalada.")
-            print("   Rode no terminal: pip install google-generativeai")
-            return
-
-        api_key = os.environ.get("GEMINI_API_KEY", "")
-        if not api_key:
-            api_key = input("🔑 Cole sua API Key do Google Gemini (ou Enter para cancelar): ").strip()
-            if not api_key:
-                return
-            # Salva na variável de ambiente para não pedir novamente nesta sessão
-            os.environ["GEMINI_API_KEY"] = api_key
-            
-        try:
-            genai.configure(api_key=api_key)
-            
-            # Prepara uma versão em string das estatísticas e dos primeiros dados
-            estatisticas = self.df.describe().to_string()
-            amostra = self.df.head().to_string()
-            
-            prompt = f"Você é um Analista de Dados Sênior. Analise as estatísticas descritivas e a amostra dos dados abaixo. Forneça um resumo executivo com os 3 principais insights de negócios. Seja direto, claro e use linguagem profissional de negócios.\n\nEstatísticas:\n{estatisticas}\n\nAmostra de Dados:\n{amostra}"
-            
-            print("⏳ Analisando dados com o Gemini... (isso pode levar alguns segundos)\n")
-            
-            # Busca dinamicamente qual modelo está disponível para a sua chave
-            modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            if not modelos_disponiveis:
-                raise Exception("Sua API Key não tem acesso a nenhum modelo de geração de texto.")
-                
-            modelo_escolhido = modelos_disponiveis[0]
-            for m in modelos_disponiveis:
-                if '1.5-flash' in m:
-                    modelo_escolhido = m
-                    break
-                    
-            print(f"⚙️ Modelo selecionado automaticamente: {modelo_escolhido}")
-            model = genai.GenerativeModel(modelo_escolhido)
-            response = model.generate_content(prompt)
-            
-            print("✨ INSIGHTS GERADOS PELO GEMINI ✨")
-            print("-" * 50)
-            print(response.text)
-            print("-" * 50)
-            
-            # Salva o resultado no diretório de saída
-            if self.output_dir:
-                filepath = os.path.join(self.output_dir, 'insights_gemini.txt')
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    f.write(response.text)
-                print(f"✅ Insights textuais salvos em: '{filepath}'")
-                
-        except Exception as e:
-            print(f"❌ Erro ao comunicar com a API do Gemini: {e}")
+        ia.obter_insights(self.df, self.output_dir)
 
     @dados_carregados_required
     def analise_automatizada_ia(self):
@@ -554,82 +460,9 @@ else:
         print("\n🚀 INICIANDO AUTO-PILOT: ANÁLISE COMPLETA COM IA...")
         print("="*50)
         
-        print("⚙️ 1/3 Extraindo contexto total dos dados (Estatísticas, Nulos, Estrutura)...")
-        buffer_info = io.StringIO()
-        self.df.info(buf=buffer_info)
-        info_str = buffer_info.getvalue()
-        
-        estatisticas = self.df.describe().to_string()
-        amostra = self.df.head().to_string()
-        nulos = self.df.isnull().sum().to_string()
-        
-        print("🧠 2/3 Preparando o cérebro da IA...")
-        try:
-            import google.generativeai as genai
-        except ImportError:
-            print("❌ ERRO: A biblioteca 'google-generativeai' não está instalada.")
-            return
-
-        api_key = os.environ.get("GEMINI_API_KEY", "")
-        if not api_key:
-            api_key = input("🔑 Cole sua API Key do Google Gemini: ").strip()
-            if not api_key: return
-            # Salva na variável de ambiente para não pedir novamente nesta sessão
-            os.environ["GEMINI_API_KEY"] = api_key
-            
-        try:
-            genai.configure(api_key=api_key)
-            prompt = f"""Você é um Cientista de Dados Sênior Autônomo.
-Sua missão é atuar como um "Piloto Automático" e realizar a análise completa deste dataset.
-Vou fornecer o contexto estrutural e estatístico. Sua saída deve ser um relatório definitivo, analítico e extremamente profissional formatado em Markdown.
-
-INFORMAÇÕES DO DATASET:
---- INFORMAÇÕES GERAIS E TIPOS ---
-{info_str}
---- VALORES NULOS (MISSING DATA) ---
-{nulos}
---- ESTATÍSTICAS DESCRITIVAS ---
-{estatisticas}
---- AMOSTRA DOS DADOS (PRIMEIRAS LINHAS) ---
-{amostra}
-
-Crie um relatório rico focado em negócios, contendo obrigatoriamente:
-# 📊 Relatório Analítico Executivo
-1. **Visão Geral e Qualidade dos Dados:** O que este dataset representa? Os dados estão limpos? Existem nulos problemáticos?
-2. **Principais Insights Estatísticos:** Padrões interessantes, médias e variações que chamam a atenção.
-3. **Detecção de Anomalias:** Possíveis outliers e comportamentos anormais.
-4. **Próximos Passos e Ações de Negócio:** Recomendações práticas do que fazer com base nesses números.
-"""
-            print("⏳ 3/3 O Gemini está redigindo o Relatório Executivo (isso pode demorar uns 15 segundos)...")
-            
-            modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            if not modelos_disponiveis:
-                raise Exception("Sua API Key não tem acesso a modelos de geração de texto.")
-                
-            modelo_escolhido = modelos_disponiveis[0]
-            for m in modelos_disponiveis:
-                if '1.5-pro' in m: 
-                    modelo_escolhido = m
-                    break
-                elif '1.5-flash' in m: 
-                    modelo_escolhido = m
-                    
-            print(f"🤖 Modelo selecionado automaticamente: {modelo_escolhido}")
-            model = genai.GenerativeModel(modelo_escolhido)
-            response = model.generate_content(prompt)
-            
-            filepath = os.path.join(self.output_dir or '.', 'Relatorio_Completo_AutoPilot_Gemini.md')
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write(response.text)
-                
-            print("\n✨ RELATÓRIO COMPLETADO COM SUCESSO ✨")
-            print(f"✅ Arquivo salvo em: '{filepath}'")
-            print("💡 DICA: Abra o arquivo .md gerado no VS Code (ou em qualquer leitor de Markdown) para ver a formatação!")
-            
+        sucesso = ia.analise_automatizada(self.df, self.output_dir)
+        if sucesso:
             self._abrir_pasta_saida()
-            
-        except Exception as e:
-            print(f"❌ Erro ao gerar análise automatizada: {e}")
 
     def menu(self):
         while True:
