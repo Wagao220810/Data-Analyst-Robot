@@ -317,13 +317,13 @@ class RoboAnalistaDados:
             print("❌ ERRO: A biblioteca 'google-generativeai' não está instalada.")
             return
 
-        # ⚠️ AVISO DE SEGURANÇA: Chave salva diretamente no código.
-        # Nunca compartilhe este arquivo ou suba no GitHub com essa chave exposta!
         api_key = os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
             api_key = input("🔑 Cole sua API Key do Google Gemini (ou Enter para cancelar): ").strip()
             if not api_key:
                 return
+            # Salva na variável de ambiente para não pedir novamente nesta sessão
+            os.environ["GEMINI_API_KEY"] = api_key
             
         try:
             genai.configure(api_key=api_key)
@@ -499,13 +499,13 @@ else:
             print("   Rode no terminal: pip install google-generativeai")
             return
 
-        # ⚠️ AVISO DE SEGURANÇA: Chave salva diretamente no código.
-        # Nunca compartilhe este arquivo ou suba no GitHub com essa chave exposta!
         api_key = os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
             api_key = input("🔑 Cole sua API Key do Google Gemini (ou Enter para cancelar): ").strip()
             if not api_key:
                 return
+            # Salva na variável de ambiente para não pedir novamente nesta sessão
+            os.environ["GEMINI_API_KEY"] = api_key
             
         try:
             genai.configure(api_key=api_key)
@@ -570,11 +570,12 @@ else:
             print("❌ ERRO: A biblioteca 'google-generativeai' não está instalada.")
             return
 
-        # ⚠️ AVISO DE SEGURANÇA: Chave salva diretamente no código.
         api_key = os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
             api_key = input("🔑 Cole sua API Key do Google Gemini: ").strip()
             if not api_key: return
+            # Salva na variável de ambiente para não pedir novamente nesta sessão
+            os.environ["GEMINI_API_KEY"] = api_key
             
         try:
             genai.configure(api_key=api_key)
