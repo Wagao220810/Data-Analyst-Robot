@@ -38,8 +38,9 @@ def main():
         if not executar_comando(f"git checkout -b {branch}"):
             return
 
-    print("\n Adicionando todos os arquivos (git add .)...")
-    if not executar_comando("git add ."):
+    arquivos_robo = "data_analyst_robot.py compilar_robo.py atualizar_github.py src/ tests/ .gitignore"
+    print("\n Adicionando somente arquivos do robô e testes...")
+    if not executar_comando(f"git add {arquivos_robo}"):
         return
 
     print(f"💾 Fazendo o commit (git commit -m \"{mensagem}\")...")

@@ -4,6 +4,8 @@ dist/
 *.pkg
 *.exe
 __pycache__/
+*.spec
+.env
 
 # Ignorar pastas de resultados geradas pelo robo
 analise_*/

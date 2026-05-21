@@ -43,6 +43,7 @@ def compilar():
         "--collect-all", "google.protobuf",
         "--copy-metadata", "google-generativeai",
         "--copy-metadata", "google-api-core",
+        # Adicione novos arquivos da pasta 'src' usando a flag --hidden-import abaixo:
         "--hidden-import", "src",
         "--hidden-import", "src.ia",
         "--hidden-import", "src.dados",
